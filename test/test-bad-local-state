@@ -1,0 +1,21 @@
+#!/bin/bash
+
+source common.sh
+
+slingshot-network-cfg-lldp -n -f mock-cases/bad-local-state.infile hsn0 2>&1 | tee log
+ret=${PIPESTATUS[0]}
+
+found=$(check_for_diag_messages log)
+if ! $found ; then
+    echo could not find diagnostic messages
+    exit 0
+fi
+
+found=$(check_for_keywords "local adapter state" log)
+if ! $found ; then
+    echo could not find specific message: local adapter state
+    exit 0
+fi
+
+
+exit $ret

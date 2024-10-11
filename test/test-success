@@ -1,0 +1,7 @@
+#!/bin/bash
+
+source common.sh
+
+slingshot-network-cfg-lldp -n -f mock-cases/success.infile hsn0
+
+exit $?

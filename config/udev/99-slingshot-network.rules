@@ -1,0 +1,2 @@
+ACTION=="add", SUBSYSTEM=="net", SUBSYSTEMS=="pci", DRIVERS=="?*", PROGRAM="/usr/bin/slingshot-ifname $kernel" NAME="$result"
+## future ## ACTION=="add", SUBSYSTEM=="net", SUBSYSTEMS=="virtio", DRIVERS=="?*", PROGRAM="/usr/bin/slingshot-ifname $kernel" NAME="$result"

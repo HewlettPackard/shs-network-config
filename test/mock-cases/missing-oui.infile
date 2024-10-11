@@ -1,0 +1,11 @@
+Chassis ID TLV
+	MAC: 02:fe:00:00:08:b3
+Port ID TLV
+	MAC: 02:fe:00:00:08:b3
+Time to Live TLV
+	120
+Port Description TLV
+	Interface 55 as ros0p51
+System Name TLV
+	x9000c3r3b0
+End of LLDPDU TLV

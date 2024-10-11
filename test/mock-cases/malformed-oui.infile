@@ -1,0 +1,13 @@
+Chassis ID TLV
+	MAC: 02:fe:00:00:08:b3
+Port ID TLV
+	MAC: 02:fe:00:00:08:b3
+Time to Live TLV
+	120
+Port Description TLV
+	Interface 55 as ros0p51
+System Name TLV
+	x9000c3r3b0
+Unidentified Org Specific TLV
+	OUI: 0x000eab, Subtype: 1, Info: 7b202274746c223a22666f7265766572222c226d7475223a20393030307d
+End of LLDPDU TLV
