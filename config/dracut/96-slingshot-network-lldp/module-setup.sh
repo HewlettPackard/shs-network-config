@@ -14,7 +14,11 @@ install() {
     local bindir=/opt/slingshot/slingshot-network-config/default/bin
     inst_multiple lldpad lldptool slingshot-network-cfg-lldp ethtool
     inst "$bindir/slingshot-ifroute.sh"
-    inst "/etc/iproute2/rt_tables"
+    if [ -f /etc/iproute2/rt_tables ] ; then
+        inst /etc/iproute2/rt_tables
+    elif [ -f /usr/share/iproute2/rt_tables ] ; then
+        inst /usr/share/iproute2/rt_tables
+    fi
     inst "/usr/bin/head"
     inst "/sbin/sysctl"
     inst "/usr/bin/wc"

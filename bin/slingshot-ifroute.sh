@@ -69,7 +69,15 @@ function apply_routes_from_file {
     done < ${route_file}
 }
 
-RT_TABLES=/etc/iproute2/rt_tables
+if [ -f /etc/iproute2/rt_tables ] ; then
+    RT_TABLES=/etc/iproute2/rt_tables
+elif [ -f /usr/share/iproute2/rt_tables ] ; then
+    RT_TABLES=/usr/share/iproute2/rt_tables
+else
+    echo 'iproute2 rt_tables not found.'
+    exit 1
+fi
+
 NET_DIR=/sys/class/net
 DEV_PREFIX=hsn
 RT_PREFIX=rt_
