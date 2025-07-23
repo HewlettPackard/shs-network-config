@@ -6,7 +6,7 @@
 set -Eeuo pipefail
 
 CE_BUILD_SCRIPT_REPO=hpc-shs-ce-devops
-CE_CONFIG_BRANCH=${CE_CONFIG_BRANCH:-ubuntu-tjm}
+CE_CONFIG_BRANCH=${CE_CONFIG_BRANCH:-main}
 
 if [ -d ${CE_BUILD_SCRIPT_REPO} ]; then
     git -C ${CE_BUILD_SCRIPT_REPO} checkout ${CE_CONFIG_BRANCH}
