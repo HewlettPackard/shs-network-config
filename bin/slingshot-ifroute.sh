@@ -34,6 +34,26 @@ Examples:
     exit 1
 }
 
+cleanup() {
+    status=$?
+    echo "Exiting with status $status"
+}
+trap cleanup EXIT
+
+LOCKFILE="/var/lock/slingshot-ifroute.lock"
+
+# Open lock file descriptor 200
+exec 200>"$LOCKFILE"
+# Check if another process holds the lock
+if ! flock -n 200; then
+    echo "WARNING: Another slingshot-ifroute instance is running. Waiting for it to finish..."
+    # Now block until the lock is available
+    flock 200
+fi
+
+# Acquire exclusive lock (blocking mode)
+echo "Lock acquired, running slingshot-ifroute..."
+
 function dec2ip () {
     local ip dec=$@
     for e in {3..0}
@@ -219,7 +239,7 @@ for device in ${INTERFACES} ; do
 
     # add local routing policy for outbound devices
     add_rule_if_not_present "from $device_ip lookup ${label} pref ${outbound_rem_device_priority}"
-
+    echo "ip route replace table ${label} ${device_network}/${device_netmask} dev ${device} proto kernel scope host src ${device_ip}"
     # add local routing rules specific to the device
     ip route replace table ${label} ${device_network}/${device_netmask} dev ${device} proto kernel scope host src ${device_ip}
 done
