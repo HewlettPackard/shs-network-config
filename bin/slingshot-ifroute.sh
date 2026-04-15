@@ -54,6 +54,13 @@ fi
 # Acquire exclusive lock (blocking mode)
 echo "Lock acquired, running slingshot-ifroute..."
 
+# Detect if it is Ubuntu
+IS_UBUNTU=0
+if [[ -r /etc/os-release ]]; then
+    . /etc/os-release
+    [[ "$ID" == "ubuntu" || "$ID_LIKE" == *ubuntu* ]] && IS_UBUNTU=1
+fi
+
 function dec2ip () {
     local ip dec=$@
     for e in {3..0}
@@ -191,19 +198,28 @@ for device in ${INTERFACES} ; do
     fi
 done
 
-# check to see if the local table is already a lower priority
-expected_local_priority=10
-actual_local_priority=$(ip rule | grep "from all lookup local" | awk -F: '{print $1}')
-if [[ ${actual_local_priority} -lt ${expected_local_priority} ]] ; then
-    # move local table to a slightly lower priority
-    ip rule add lookup local pref ${expected_local_priority}
-    # delete the lowest priority local rule
-    ip rule del lookup local
+# Ubuntu requires 'from all lookup local' to remain at highest priority; changing it can break local/console connectivity
+if [[ $IS_UBUNTU -ne 1 ]]; then
+    # check to see if the local table is already a lower priority
+    expected_local_priority=10
+    actual_local_priority=$(ip rule | grep "from all lookup local" | awk -F: '{print $1}')
+    if [[ ${actual_local_priority} -lt ${expected_local_priority} ]] ; then
+        # move local table to a slightly lower priority
+        ip rule add lookup local pref ${expected_local_priority}
+        # delete the lowest priority local rule
+        ip rule del lookup local
+    fi
 fi
 
-local_loopback_priority=0
-outbound_loc_device_priority=1
-outbound_rem_device_priority=2
+if [[ $IS_UBUNTU -eq 1 ]]; then
+    local_loopback_priority=100
+    outbound_loc_device_priority=105
+    outbound_rem_device_priority=110
+else
+    local_loopback_priority=0
+    outbound_loc_device_priority=1
+    outbound_rem_device_priority=2
+fi
 
 # ALL_HSNS - all HSN interfaces created in the system
 ALL_HSNS=$(ls ${NET_DIR} | grep ${DEV_PREFIX})
