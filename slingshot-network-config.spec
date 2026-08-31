@@ -3,7 +3,7 @@
 %define _pkgdatadir %{_datadir}
 
 Name: slingshot-network-config
-Version: 1.2.0
+Version: 1.2.1
 Release: %(echo $BUILD_METADATA)
 Summary: Slingshot Network Configuration Files
 Group: System Environment/Libraries
