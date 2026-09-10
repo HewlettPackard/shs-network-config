@@ -1,6 +1,6 @@
 #!/bin/bash
 #
-# Copyright 2021-2025 Hewlett Packard Enterprise Development LP. All rights reserved.
+# Copyright 2021-2026 Hewlett Packard Enterprise Development LP. All rights reserved.
 #
 # The slingshot-ifroute script is designed to manage network routing configurations for high-speed
 # interfaces, typically used in clustered or high-performance computing environments.
@@ -15,21 +15,21 @@ SCRIPT_NAME=$(basename "$0")
 
 function usage() {
     echo -e """
-Usage: $SCRIPT_NAME [INTERFACE] [STATUS]
+Usage: $SCRIPT_NAME [INTERFACE STATUS]
 
 This script configures routing rules and tables for network interfaces it is typically triggered by
 network events or reboot. The script expects the interface/s to be already created and configured.
 
 Arguments:
-  INTERFACE   Name of the network interface/range of interfaces (example hsn0, hsn0,hsn1 or hsn[0-1]).
-              If omitted, applies to all matching interfaces.
-  STATUS      Interface status (e.g., up). Required if INTERFACE is specified.
+  INTERFACE   Name of a single network interface (e.g. hsn0, hsn12, hsn0.2895).
+              Must start with 'hsn'. If omitted (or invalid), applies to all matching interfaces.
+  STATUS      Interface status: UP or DOWN (case-insensitive).
+              Required when INTERFACE is specified; invalid value falls back to all interfaces.
 
 Examples:
   $SCRIPT_NAME
   $SCRIPT_NAME hsn0 up
-  $SCRIPT_NAME hsn0,hsn1,hsn2 up
-  $SCRIPT_NAME hsn[0-2] up
+  $SCRIPT_NAME hsn12 DOWN
     """
     exit 1
 }
@@ -145,48 +145,51 @@ if [[ "$1" == "--help" || "$1" == "-h" ]]; then
     usage
 fi
 
-# Parse arguments
 ARG_INTERFACE="$1"
 ARG_STATUS="$2"
 
-# Check if INTERFACE is provided but STATUS is missing
-if [[ -n "$ARG_INTERFACE" && -z "$ARG_STATUS" ]]; then
-    echo "Error: STATUS argument is missing for interface '$ARG_INTERFACE'."
-    usage
-fi
+# Normalize status to lowercase for comparison
+ARG_STATUS_LOWER=$(echo "$ARG_STATUS" | tr '[:upper:]' '[:lower:]')
 
+ALL_HSNS=$(ls "${NET_DIR}" | grep -E '^'"${DEV_PREFIX}"'[0-9]+(\.[0-9]+)?$')
 
-#Expand interface input formats: hsn[1-2] or hsn0,hsn1
-if [[ "$ARG_INTERFACE" =~ ^hsn\[[0-9]+-[0-9]+\]$ ]]; then
-    range_part=$(echo "$ARG_INTERFACE" | sed -E 's/hsn\[([0-9]+)-([0-9]+)\]/\1 \2/')
-    start=$(echo $range_part | awk '{print $1}')
-    end=$(echo $range_part | awk '{print $2}')
-    INTERFACES=""
-    for ((i=start; i<=end; i++)); do
-        INTERFACES+="hsn$i "
-    done
-    INTERFACES=$(echo $INTERFACES)
-elif [[ "$ARG_INTERFACE" == *","* ]]; then
-    IFS=',' read -ra ADDR <<< "$ARG_INTERFACE"
-    INTERFACES="${ADDR[@]}"
-elif [[ -n "$ARG_INTERFACE" ]]; then
-    INTERFACES="$ARG_INTERFACE"
+if [[ -z "$ARG_INTERFACE" ]]; then
+    # No arguments: run for all hsn interfaces
+    echo "No interface specified. Running for all hsn interfaces."
+    INTERFACES=$ALL_HSNS
 else
-    echo "Running for all hsn interfaces"
-    INTERFACES=$(ls ${NET_DIR} | grep ${DEV_PREFIX})
-fi
+    # One interface + status provided — validate both
+    VALIDATION_FAILED=0
 
+    if [[ ! "$ARG_INTERFACE" =~ ^hsn ]]; then
+        echo "WARNING: Interface '$ARG_INTERFACE' does not start with 'hsn'. Falling back to all interfaces."
+        VALIDATION_FAILED=1
+    elif ! echo "$ALL_HSNS" | grep -Fqx "$ARG_INTERFACE"; then
+        echo "WARNING: Interface '$ARG_INTERFACE' not found in available hsn interfaces. Falling back to all interfaces."
+        VALIDATION_FAILED=1
+    fi
+
+    if [[ -z "$ARG_STATUS" || ( "$ARG_STATUS_LOWER" != "up" && "$ARG_STATUS_LOWER" != "down" ) ]]; then
+        echo "WARNING: Status '${ARG_STATUS}' is invalid or missing (expected UP or DOWN). Falling back to all interfaces."
+        VALIDATION_FAILED=1
+    fi
+
+    if [[ $VALIDATION_FAILED -eq 1 ]]; then
+        INTERFACES=$ALL_HSNS
+    else
+        INTERFACES="$ARG_INTERFACE"
+    fi
+fi
 
 # create routing tables for the devices
-_index=0
 for device in ${INTERFACES} ; do
     label=${RT_PREFIX}${device}
-    found=$(grep "$label" ${RT_TABLES} | wc -l)
+    found=$(awk -v label="${label}" '$1 ~ /^[0-9]+$/ && $2 == label' "${RT_TABLES}" | wc -l)
     unit=${device#${DEV_PREFIX}}
-    let index=200+${unit}
+    index=$(( 200 + ${unit%%.*} ))
 
     if [[ ${found} -eq 1 ]] ; then
-        echo "${label} already exists: $(grep "$label" ${RT_TABLES})"
+        echo "${label} already exists: $(awk -v label="${label}" '$1 ~ /^[0-9]+$/ && $2 == label' "${RT_TABLES}")"
     else
         if [[ ${found} -eq 0 ]] ; then
             echo "adding entry for ${label} in ${RT_TABLES}"
@@ -220,9 +223,6 @@ else
     outbound_loc_device_priority=1
     outbound_rem_device_priority=2
 fi
-
-# ALL_HSNS - all HSN interfaces created in the system
-ALL_HSNS=$(ls ${NET_DIR} | grep ${DEV_PREFIX})
 
 #Iterate through interfaces passed by the script (Which could be a sub set of all HSNs interfaces)
 for device in ${INTERFACES} ; do
@@ -262,12 +262,12 @@ done
 
 # set sysctl values
 for device in ${INTERFACES} ; do
-    sysctl -w net.ipv4.conf.${device}.accept_local=1
-    sysctl -w net.ipv4.conf.${device}.arp_accept=1
-    sysctl -w net.ipv4.conf.${device}.arp_ignore=1
-    sysctl -w net.ipv4.conf.${device}.arp_filter=1
-    sysctl -w net.ipv4.conf.${device}.arp_announce=2
-    sysctl -w net.ipv4.conf.${device}.rp_filter=0
+    sysctl -w "net/ipv4/conf/${device}/accept_local=1"
+    sysctl -w "net/ipv4/conf/${device}/arp_accept=1"
+    sysctl -w "net/ipv4/conf/${device}/arp_ignore=1"
+    sysctl -w "net/ipv4/conf/${device}/arp_filter=1"
+    sysctl -w "net/ipv4/conf/${device}/arp_announce=2"
+    sysctl -w "net/ipv4/conf/${device}/rp_filter=0"
 done
 
 # flush the ARP cache
