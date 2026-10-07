@@ -255,9 +255,9 @@ for device in ${INTERFACES} ; do
 
     # add local routing policy for outbound devices
     add_rule_if_not_present "from $device_ip lookup ${label} pref ${outbound_rem_device_priority}"
-    echo "ip route replace table ${label} ${device_network}/${device_netmask} dev ${device} proto kernel scope host src ${device_ip}"
+    echo "ip route replace table ${label} ${device_network}/${device_netmask} dev ${device} proto kernel scope link src ${device_ip}"
     # add local routing rules specific to the device
-    ip route replace table ${label} ${device_network}/${device_netmask} dev ${device} proto kernel scope host src ${device_ip}
+    ip route replace table ${label} ${device_network}/${device_netmask} dev ${device} proto kernel scope link src ${device_ip}
 done
 
 # set sysctl values
