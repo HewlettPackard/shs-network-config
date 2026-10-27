@@ -351,7 +351,7 @@ bool do_ip_cmds(fabric_config_t *fc)
     }
 
     ALLOC_CMD_BUFFER(commands, index, free_commands,
-                        "ip addr add %s dev %s valid_lft %s preferred_lft %s",
+                        "ip addr replace %s dev %s valid_lft %s preferred_lft %s",
                         fc->ip_addr, fc->ifname, fc->ttl, fc->mtu);
     ALLOC_CMD_BUFFER(commands, index, free_commands,
                         "ip link set dev %s mtu %s", fc->ifname, fc->mtu);
